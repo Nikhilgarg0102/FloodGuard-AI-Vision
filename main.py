@@ -7,3 +7,4 @@ generate_simulated_data(n=100)
 # Step 2: launch Streamlit dashboard
 import subprocess
 subprocess.run(["python","-m","streamlit","run","dashboard/app.py"])
+

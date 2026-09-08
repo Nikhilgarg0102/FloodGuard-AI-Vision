@@ -5,6 +5,25 @@ import time
 from models.inflow_predictor import InflowPredictor
 from models.optimizer import safe_release
 from utils.preprocessing import load_data, clean_data, add_features
+from face_auth import authenticate_user
+
+# if not authenticate_user():
+#     st.error("❌ Unauthorized Access")
+#     st.stop()
+
+# -----------------------------
+# Face Authentication Session
+# -----------------------------
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+
+    if authenticate_user():
+        st.session_state.authenticated = True
+    else:
+        st.error("❌ Unauthorized User")
+        st.stop()
 
 # -----------------------------
 # Page Setup
@@ -70,31 +89,47 @@ st.metric("Predicted Risk Status", risk_status)
 # -----------------------------
 # Run Live Simulation Button
 # -----------------------------
+
+
+# -----------------------------
+# Run Live Simulation Button
+# -----------------------------
 if st.button("▶️ Run Live Simulation"):
 
     st.subheader("🚀 Running Live Reservoir Simulation")
+
     timesteps = 20
     sim_levels = []
     risk_list = []
-    current_level = df["reservoir_level"].iloc[-1]
 
-    chart = st.line_chart([], width=0, height=300)  # initialize empty chart
+    # start reservoir at medium level
+    current_level = 50
 
+    # simulation loop
     for t in range(timesteps):
-        # predicted inflow at each step
-        inflow = predictor.predict([[future_rainfall, last_inflow, last_rain_avg]])[0]
-        last_inflow = inflow
-        last_rain_avg = (last_rain_avg*2 + future_rainfall)/3
 
-        # calculate release
-        release = safe_release(current_level, predicted_inflow)
+        # rainfall changes dynamically
+        dynamic_rainfall = future_rainfall + np.random.randint(-10, 10)
 
-        # update reservoir level
-        current_level += (predicted_inflow - release) * 0.02
+        # prevent negative rainfall
+        dynamic_rainfall = max(0, dynamic_rainfall)
+
+        # inflow calculation
+        inflow = dynamic_rainfall * 0.6 + np.random.randint(0, 10)
+
+        # release calculation
+        release = inflow * 0.4
+
+        # reservoir level update
+        current_level += (inflow - release) * 0.2
+
+        # keep between 0 and 100
         current_level = max(0, min(100, current_level))
-        sim_levels.append(current_level)
 
-        # calculate risk
+        # store level
+        sim_levels.append(round(current_level, 2))
+
+        # risk calculation
         if current_level > 90:
             risk_list.append("🚨 High Risk")
         elif current_level > 75:
@@ -102,15 +137,92 @@ if st.button("▶️ Run Live Simulation"):
         else:
             risk_list.append("✅ Safe")
 
-        # update live chart
-        chart.add_rows(pd.DataFrame({"Reservoir Level": [current_level]}))
-        time.sleep(0.3)  # live animation effect
+        # animation delay
+        time.sleep(0.2)
 
-    # Show simulation table
+    # simulation chart
+    sim_chart_df = pd.DataFrame({
+        "Time Step": range(1, timesteps + 1),
+        "Reservoir Level": sim_levels
+    })
+
+    st.subheader("📊 Reservoir Level Simulation")
+    st.line_chart(sim_chart_df.set_index("Time Step"))
+
+    # simulation table
     sim_df = pd.DataFrame({
-        "Time Step": range(1, timesteps+1),
+        "Time Step": range(1, timesteps + 1),
         "Reservoir Level": sim_levels,
         "Risk": risk_list
     })
+
     st.subheader("🛑 Simulation Risk Status Over Time")
     st.table(sim_df)
+
+
+# if st.button("▶️ Run Live Simulation"):
+
+#     st.subheader("🚀 Running Live Reservoir Simulation")
+#     timesteps = 20
+#     sim_levels = []
+#     risk_list = []
+#     #current_level = df["reservoir_level"].iloc[-1]
+#     current_level = 50
+
+#     # chart = st.line_chart(
+#     # pd.DataFrame({"Reservoir Level": []}),
+#     # height=300)
+#     # chart = st.line_chart([], width=0, height=300)  # initialize empty chart
+    
+#     for t in range(timesteps):
+        
+#     # change rainfall slightly at every timestep
+#         dynamic_rainfall = future_rainfall + np.random.randint(-10, 10)
+
+#         # avoid negative rainfall
+#         dynamic_rainfall = max(0, dynamic_rainfall)
+
+#         inflow = dynamic_rainfall * 0.6 + np.random.randint(0, 10)
+   
+#         # # update history for next timestep
+#         ### last_inflow = inflow
+#         ### last_rain_avg = (last_rain_avg * 2 + dynamic_rainfall) / 3
+
+#         # calculate release based on this timestep inflow
+#         release = inflow * 0.4
+
+#         # update reservoir level
+#         current_level += (inflow - release) * 0.2
+#         current_level = max(0, min(100, current_level))
+#         sim_levels.append(current_level, 2)
+
+#         # calculate risk
+#         if current_level > 90:
+#             risk_list.append("🚨 High Risk")
+#         elif current_level > 75:
+#             risk_list.append("⚠️ Medium Risk")
+#         else:
+#             risk_list.append("✅ Safe")
+
+#         # update live chart
+#         ### chart.add_rows(pd.DataFrame({"Reservoir Level": [current_level]}))
+#         time.sleep(0.3)  # live animation effect
+
+#         ### sim_levels.append(round(current_level, 2))
+
+#     # chart after simulation
+#     sim_chart_df = pd.DataFrame({
+#         "Time Step": range(1, timesteps + 1),
+#         "Reservoir Level": sim_levels
+#     })
+
+#     st.line_chart(sim_chart_df.set_index("Time Step"))
+
+#     # # Show simulation table
+#     # sim_df = pd.DataFrame({
+#     #     "Time Step": range(1, timesteps + 1),
+#     #     "Reservoir Level": sim_levels,
+#     #     "Risk": risk_list
+    
+#     st.subheader("🛑 Simulation Risk Status Over Time")
+#     st.table(sim_df)

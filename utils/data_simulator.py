@@ -5,19 +5,23 @@ import os
 def generate_simulated_data(n=100, save_path="data/simulated_data.csv"):
     os.makedirs(os.path.dirname(save_path), exist_ok=True)
     level = 50
+    capacity = 1000
     data = []
 
     for t in range(n):
         rainfall = np.random.randint(0, 200)                   # mm
         inflow = rainfall * np.random.uniform(0.5, 1.5)       # inflow depends on rainfall
-        release = 0
+        
         if level > 95:
             release = inflow * 0.8
         elif level > 85:
             release = inflow * 0.5
         elif level > 70:
-            release = inflow * 0.2
-        level += (inflow - release) / 100                     # update water level
+            release = inflow * 0.2   
+        else:
+            release = 0
+        level += ((inflow - release) / capacity) * 100            # update water level
+        level = max(0, min(100, level))                           # keep within 0-100%
         downstream_flow = inflow + release
         data.append([t, rainfall, inflow, level, release, downstream_flow])
 
